@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מערכת הזרימה של הזוהר</title>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: night, luminous, calm
+   IDEA: a 3D funnel of glowing rings — light from the sun is filtered layer by layer down to Earth
+   PICTURE: coloured rings in space, particles falling through, coloured mist leaving, aurora lighting up on a globe below
+   COLOUR/TYPE: deep space ground; gold · violet · cyan · pearl · aurora green-pink; Assistant
+   LAYOUT: sculpture centred, slim labels beside each ring, city chips on top */
+html,body{margin:0;height:100%;background:#02040a;color:#d9e6f2;font-family:Assistant,system-ui,sans-serif;overflow:hidden}
+#hud{position:fixed;top:16px;right:20px;left:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;z-index:3;pointer-events:none}
+h1{margin:0;font-weight:300;font-size:clamp(20px,2.4vw,30px);color:#eef6ff}
+#sub{margin:4px 0 0;font-size:13px;color:#8fa3b8}
+#chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;pointer-events:auto;max-width:520px}
+#chips button{background:rgba(120,160,255,.06);border:1px solid rgba(140,200,255,.25);color:#cfe3ff;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;min-height:32px}
+#chips button.on{border-color:#5dffb4;color:#5dffb4;background:rgba(93,255,180,.08)}
+#foot{position:fixed;bottom:10px;right:20px;left:20px;font-size:11px;color:#6f8296;z-index:3;pointer-events:none}
+@media (max-width:640px){#foot{display:none}#hud{flex-direction:column;top:10px;right:12px;left:12px}#chips{justify-content:flex-start}#foot{font-size:10px}}
+</style>
+</head>
+<body>
+<div id="hud"><div><h1>מערכת הזרימה של הזוהר</h1><p id="sub"></p></div><div id="chips"></div></div>
+<div id="foot">רדיוס הטבעות בסקאלת חזקה (n^0.35) · כל חלקיק עובר טבעת בהסתברות האמיתית · Kp — GFZ · עננות — ERA5 · 2021–2025 · גררי כדי לסובב</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script>
+{
+const D={all:{he:'כל הערים',n:[219120,63772,16934,2441,306]},tromso:{he:'טרומסה',n:[43824,12419,3410,210,27]},abisko:{he:'אביסקו',n:[43824,12578,3456,160,32]},
+  rovaniemi:{he:'רובניימי',n:[43824,12726,3508,618,69]},reykjavik:{he:'רייקיאוויק',n:[43824,13026,3579,547,83]},fairbanks:{he:'פיירבנקס',n:[43824,13023,2981,906,95]}};
+const ST=[{t:'שמש',m:'שמש',c:[255,196,105]},{t:'חושך',m:'חושך',c:[150,115,255]},{t:'הדלת המגנטית · Kp ≥ 3',m:'הדלת המגנטית',c:[80,200,255]},{t:'שמיים בהירים',m:'שמיים בהירים',c:[225,235,250]},{t:'סערה · Kp ≥ 5',m:'סערה',c:[80,255,170]}];
+const LRI='⁦',PDI='⁩',I=v=>LRI+v+PDI,fmt=n=>Math.round(n).toLocaleString('en-US');
+let key='all',cur=D.all.n.slice(),W,H,mob,S,cx,cy,yaw=0.6,pitch=0.42,drag=null,parts=[],mist=[],sparks=[],stars=[],landed=0;
+const chips=document.getElementById('chips');
+Object.entries(D).forEach(([k,v])=>{const b=document.createElement('button');b.textContent=v.he;if(k===key)b.className='on';b.onclick=()=>{key=k;landed=0;[...chips.children].forEach(c=>c.classList.toggle('on',c===b));sub();};chips.appendChild(b);});
+function sub(){const n=D[key].n;document.getElementById('sub').textContent=`${fmt(n[0])} שעות נכנסות. ${fmt(n[4])} מגיעות לכדור הארץ.`;}sub();
+const Y=[1.25,0.62,0.05,-0.5,-1.0],EARTH_Y=-2.0,ER=0.78;
+const rr=i=>Math.max(0.035,1.0*Math.pow(cur[i]/cur[0],0.35));
+function rAt(y){for(let i=0;i<4;i++)if(y>=Y[i+1]){const f=(Y[i]-y)/(Y[i]-Y[i+1]);return rr(i)+(rr(i+1)-rr(i))*Math.min(1,f*1.25);}return rr(4)*(1-Math.min(1,(Y[4]-y)/(Y[4]-EARTH_Y-ER*0.75))*0.3);}
+function P(x,y,z){const cy_=Math.cos(yaw),sy=Math.sin(yaw);let X=x*cy_-z*sy,Z=x*sy+z*cy_;const cp=Math.cos(pitch),sp=Math.sin(pitch);const Y2=y*cp-Z*sp,Z2=y*sp+Z*cp;const s=6/(6+Z2);return [cx+X*S*s,cy-Y2*S*s,Z2,s];}
+window.setup=()=>{createCanvas(windowWidth,windowHeight);pixelDensity(Math.min(2,devicePixelRatio||1));lay();for(let i=0;i<300;i++)stars.push([Math.random(),Math.random(),Math.random()]);};
+window.windowResized=()=>{resizeCanvas(windowWidth,windowHeight);lay();};
+function lay(){W=width;H=height;mob=W<640;S=Math.min(W*(mob?0.36:0.2),H*0.19);cx=mob?W*0.42:W*0.47;cy=H*(mob?0.47:0.42);}
+window.mousePressed=()=>{drag=mouseX;};window.mouseReleased=()=>{drag=null;};window.mouseDragged=()=>{if(drag!==null){yaw+=(mouseX-drag)*0.008;drag=mouseX;}};
+window.draw=()=>{const dt=Math.min(0.05,deltaTime/1000),ctx=drawingContext,n=D[key].n;for(let i=0;i<5;i++)cur[i]+=(n[i]-cur[i])*0.07;if(drag===null)yaw+=dt*0.12;
+  ctx.fillStyle='#02040a';ctx.fillRect(0,0,W,H);for(const s of stars){ctx.fillStyle=`rgba(200,220,255,${0.15+0.5*s[2]})`;ctx.fillRect(s[0]*W,s[1]*H,1+s[2],1+s[2]);}
+  earth(ctx,false);
+  // spawn
+  for(let k=0;k<Math.round(520*dt+Math.random()*0.5);k++){const a=Math.random()*6.283,q=Math.sqrt(Math.random());parts.push({a,q,y:Y[0]+0.25,v:0.55+Math.random()*0.35,st:0});}
+  // back halves of rings, then particles, then front halves
+  for(let i=0;i<5;i++)ring(ctx,i,false);
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  for(const p of parts){p.y-=p.v*dt;p.a+=dt*0.25;const R=rAt(p.y)*p.q;const pt=P(Math.cos(p.a)*R,p.y,Math.sin(p.a)*R);
+    const ni=p.st+1;if(ni<5&&p.y<=Y[ni]){if(Math.random()<n[ni]/n[p.st])p.st=ni;else{p.dead=1;mist.push({x:Math.cos(p.a)*R,y:p.y,z:Math.sin(p.a)*R,vx:Math.cos(p.a)*(0.25+Math.random()*0.4),vz:Math.sin(p.a)*(0.25+Math.random()*0.4),c:ST[ni].c,l:1});}}
+    if(p.st===4&&p.y<=EARTH_Y+ER*0.96){p.dead=1;landed++;sparks.push({a:p.a,l:1});}
+    const c=p.st<4?ST[p.st].c:[150,255,205];const s=(p.st===4?2.8:1.6)*pt[3];ctx.fillStyle=`rgba(${c},${p.st===4?0.95:0.55})`;ctx.fillRect(pt[0]-s/2,pt[1]-s*1.5,s,s*3);}
+  parts=parts.filter(p=>!p.dead);
+  for(const m of mist){m.x+=m.vx*dt;m.z+=m.vz*dt;m.y-=0.05*dt;m.l-=dt*0.38;const pt=P(m.x,m.y,m.z);const r=(3+(1-m.l)*14)*pt[3];const g=ctx.createRadialGradient(pt[0],pt[1],0,pt[0],pt[1],r);g.addColorStop(0,`rgba(${m.c},${0.16*m.l})`);g.addColorStop(1,`rgba(${m.c},0)`);ctx.fillStyle=g;ctx.beginPath();ctx.arc(pt[0],pt[1],r,0,7);ctx.fill();}
+  mist=mist.filter(m=>m.l>0);if(mist.length>1400)mist.splice(0,mist.length-1400);ctx.restore();
+  for(let i=0;i<5;i++)ring(ctx,i,true);
+  earth(ctx,true);labels(ctx);};
+function ring(ctx,i,front){const r=rr(i),y=Y[i],c=ST[i].c;ctx.save();ctx.globalCompositeOperation='lighter';
+  for(const [w,a] of [[14,0.07],[5,0.22],[1.4,0.9]]){ctx.beginPath();let st=true;for(let k=0;k<=96;k++){const t=k/96*6.283;const p=P(Math.cos(t)*r,y,Math.sin(t)*r);if((p[2]<0)!==front){st=true;continue;}st?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]);st=false;}ctx.strokeStyle=`rgba(${c},${a})`;ctx.lineWidth=w;ctx.stroke();}
+  if(!front){const outer=i<4?rr(i)*1.0:r;const rO=(i===0?1.0:rr(i-1))*1.15+0.05;ctx.beginPath();for(let k=0;k<=96;k++){const t=k/96*6.283;const p=P(Math.cos(t)*rO,y,Math.sin(t)*rO);k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);}ctx.strokeStyle=`rgba(${c},0.12)`;ctx.lineWidth=1;ctx.stroke();
+    // glass plate between outer rim and opening
+    ctx.beginPath();for(let k=0;k<=96;k++){const t=k/96*6.283;const p=P(Math.cos(t)*rO,y,Math.sin(t)*rO);k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);}for(let k=96;k>=0;k--){const t=k/96*6.283;const p=P(Math.cos(t)*r,y,Math.sin(t)*r);ctx.lineTo(p[0],p[1]);}ctx.fillStyle=`rgba(${c},0.05)`;ctx.fill('evenodd');}
+  if(i===3&&front){for(let k=0;k<22;k++){const t=k/22*6.283+yaw*0.1,rad_=rr(2)*0.9;const p=P(Math.cos(t)*rad_,y+0.05+0.06*Math.sin(k*2.1),Math.sin(t)*rad_);const s=(16+(k%4)*6)*p[3];const g=ctx.createRadialGradient(p[0],p[1],0,p[0],p[1],s);g.addColorStop(0,'rgba(225,235,250,0.10)');g.addColorStop(1,'rgba(225,235,250,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p[0],p[1],s,0,7);ctx.fill();}}
+  ctx.restore();}
+function earth(ctx,front){const c=P(0,EARTH_Y,0),r=ER*S*c[3];if(!front){const g0=ctx.createRadialGradient(c[0],c[1],r*0.95,c[0],c[1],r*1.35);g0.addColorStop(0,'rgba(80,190,255,0)');g0.addColorStop(0.3,'rgba(80,190,255,0.3)');g0.addColorStop(1,'rgba(130,100,255,0)');ctx.fillStyle=g0;ctx.beginPath();ctx.arc(c[0],c[1],r*1.35,0,7);ctx.fill();
+    const g=ctx.createRadialGradient(c[0]-r*0.3,c[1]-r*0.5,r*0.1,c[0],c[1],r);g.addColorStop(0,'#14407a');g.addColorStop(0.55,'#071a3a');g.addColorStop(1,'#020814');ctx.fillStyle=g;ctx.beginPath();ctx.arc(c[0],c[1],r,0,7);ctx.fill();
+    ctx.strokeStyle='rgba(170,235,255,0.7)';ctx.lineWidth=1.2;ctx.stroke();
+    // dotted latitude texture
+    for(let la=10;la<90;la+=6)for(let lo=0;lo<360;lo+=8){const a=la*Math.PI/180,b=(lo+yaw*20)*Math.PI/180;const x=Math.cos(a)*Math.cos(b)*ER,z=Math.cos(a)*Math.sin(b)*ER,y=EARTH_Y+Math.sin(a)*ER;const p=P(x,y,z);if(p[2]<0)continue;ctx.fillStyle='rgba(120,200,255,0.25)';ctx.fillRect(p[0],p[1],1.2,1.2);}
+    return;}
+  // aurora oval near the top of the globe — brightens with every arrival
+  ctx.save();ctx.globalCompositeOperation='lighter';const la=66*Math.PI/180,tm=millis()/1000,boost=Math.min(1,sparks.length*0.25);
+  for(let k=0;k<180;k++){const t=k/180*6.283;const x=Math.cos(la)*Math.cos(t)*ER,z=Math.cos(la)*Math.sin(t)*ER,y=EARTH_Y+Math.sin(la)*ER;const b=P(x,y,z);if(b[2]<-0.6)continue;
+    let a=0.18+0.25*noise(k*0.1,tm*0.5);for(const s of sparks){const d=Math.abs(((t-s.a+9.42)%6.283)-3.14);if(d<0.5)a+=s.l*(1-d/0.5)*1.4;}a*=b[2]<0?0.35:1;
+    const h=(0.12+0.25*a)*ER,tp=P(x*1.04,y+h,z*1.04);const g=ctx.createLinearGradient(b[0],b[1],tp[0],tp[1]);g.addColorStop(0,`rgba(255,90,200,${0.5*a})`);g.addColorStop(0.12,`rgba(90,255,180,${0.85*a})`);g.addColorStop(0.6,`rgba(60,230,170,${0.3*a})`);g.addColorStop(0.85,`rgba(255,70,110,${0.25*a})`);g.addColorStop(1,'rgba(150,110,255,0)');
+    ctx.strokeStyle=g;ctx.lineWidth=2.4*b[3];ctx.beginPath();ctx.moveTo(b[0],b[1]);ctx.lineTo(tp[0],tp[1]);ctx.stroke();}
+  for(const s of sparks)s.l-=deltaTime/1000*0.45;sparks=sparks.filter(s=>s.l>0);ctx.restore();}
+function labels(ctx){const n=D[key].n;ctx.direction='rtl';
+  for(let i=0;i<5;i++){const p=P(rr(i)+0.02,Y[i],0),side=cx+S*(mob?1.05:1.35);const yy=P(0,Y[i],0)[1];const c=ST[i].c;
+    ctx.strokeStyle=`rgba(${c},0.45)`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(P(0,Y[i],0)[0]+rr(i)*S*0.98,yy);ctx.lineTo(side-6,yy);ctx.stroke();
+    ctx.textAlign='left';ctx.fillStyle=`rgb(${c})`;ctx.font=`600 ${mob?11:13}px Assistant`;ctx.fillText(mob?ST[i].m:ST[i].t,side,yy-(mob?14:18));
+    ctx.fillStyle='#eef6ff';ctx.font=`300 ${mob?17:24}px Assistant`;ctx.fillText(I(fmt(cur[i])),side,yy+(mob?4:6));
+    if(i){ctx.fillStyle='rgba(190,205,225,0.7)';ctx.font=`${mob?10.5:12}px Assistant`;ctx.fillText(`עוברים ${I(Math.round(100*n[i]/n[i-1])+'%')}`,side,yy+(mob?19:25));}}
+  const ey=P(0,EARTH_Y+ER*0.55,0)[1],side=cx+S*(mob?1.05:1.35);ctx.strokeStyle='rgba(150,255,205,0.45)';ctx.beginPath();ctx.moveTo(P(0,EARTH_Y,0)[0]+ER*S*0.85,ey);ctx.lineTo(side-6,ey);ctx.stroke();
+  ctx.textAlign='left';ctx.fillStyle='rgb(150,255,205)';ctx.font=`600 ${mob?11:13}px Assistant`;ctx.fillText(mob?'כדור הארץ':'כדור הארץ — כאן האור פוגש עין',side,ey-(mob?14:18));
+  ctx.fillStyle='#eef6ff';ctx.font=`300 ${mob?17:24}px Assistant`;ctx.fillText(I(String(landed)),side,ey+(mob?4:6));ctx.fillStyle='rgba(190,205,225,0.7)';ctx.font=`${mob?10.5:12}px Assistant`;ctx.fillText(mob?'הגיעו עד כה':'חלקיקים שהגיעו מאז שנפתח העמוד',side,ey+(mob?19:25));}
+}
+</script>
+</body>
+</html>
