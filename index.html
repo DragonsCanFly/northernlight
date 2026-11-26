@@ -130,6 +130,15 @@
   מעל כל עיר עומדות 5 טבעות, מלמטה למעלה: <b>חושך</b> · <b>פעילות</b> (Kp≥3) · <b>שמיים בהירים</b> · <b>בלי ירח בהיר</b> · <b>סערה</b> (Kp≥5). טבעת מוארת = התנאי מתקיים.
   <h4>רגעי השלמות</h4>
   כשסערה של Kp 7 ומעלה פוגעת בעיר שנמצאת בחושך מלא עם עננות של 30% או פחות — הזמן עוצר, המצלמה מתקרבת, והזוהר מוצג במלוא היופי. אלה רגעים אמיתיים, בשעה המדויקת.
+  <h4>הסאונד ♪ — לפי הרמות</h4>
+  לזוהר יש שני סוגי "קולות". הראשון אמיתי ונדיר: פצפוצים, נקישות ומחיאות כף, שנשמעים מתחת לזוהר פעיל בלילות קרים, שקטים ובהירים. לפי המחקר של פרופ׳ אונטו ליינה (אוניברסיטת אלטו), הם נוצרים בפריקות חשמל בשכבת היפוך טמפרטורה בגובה של כ‑70 מטר, ולא בזוהר עצמו. השני הוא גלי רדיו טבעיים בתדרי שמע (VLF), שאפשר לשמוע רק עם מקלט רדיו: "לחישה" (hiss) ו"מקהלה" (chorus), צפצופים עולים שנשמעים כמו ציפורים בשחר.<br>
+  <b>רמה 1 · חושך</b> — שקט.<br>
+  <b>רמה 2 · פעילות (Kp≥3)</b> — לחישת הזוהר, רחש רדיו שמתחזק עם Kp.<br>
+  <b>רמה 3 · שמיים בהירים</b> — בעיר חשוכה ובהירה מופיעים פצפוצים בודדים. לילה בהיר וקר הוא התנאי לשכבת ההיפוך.<br>
+  <b>רמה 4 · בלי ירח</b> — לירח אין השפעה על הקול, ולכן אין לו צליל.<br>
+  <b>רמה 5 · סערה (Kp≥5)</b> — המקהלה: צפצופים עולים, צפופים יותר ככל שהסערה חזקה.<br>
+  <b>שלמות</b> — מטחי פצפוצים בקצב של כ‑7.8 פעמים בשנייה (תהודת שומאן, שליינה מצא בקצב הפצפוצים), ולפניהם, כשהמצלמה צוללת, משב רך ושני "שורקים" (whistlers) — צלילי רדיו יורדים שנוסעים לאורך קווי השדה.<br>
+  <span style="opacity:.65">הצלילים מסונתזים לפי התיאורים וההקלטות, ולא מוקלטים.</span><br>
   <h4>גלריית האנשים</h4>
   ברגעי השלמות צפה מעל הזוהר טבעת של תמונות אמיתיות: תמונות זוהר ברישיון חופשי שהועלו ל‑Wikimedia Commons באותו חודש. תמונות שצולמו ליד העיר המושלמת גדולות ומוארות; כל השאר חיוורות יותר, וקו דק מוביל מכל תמונה למקום שבו צולמה. התגלית: ברגעים המושלמים כמעט אף אחד לא העלה תמונה מהמקום המושלם. רוב התמונות של אותן סערות צולמו במקומות שבהם זוהר הוא נדיר — בריטניה, ארה״ב, מרכז אירופה. ליד כל תמונה מופיע מתי צולמה באמת. מעבר עם העכבר מראה צלם, רישיון וקישור; לחיצה מקבעת.<br>
   <h4>מה עוד לא שעתי</h4>
@@ -233,7 +242,38 @@ const BASE=NH/100;
 // ---------- sound ----------
 let AC=null;const ac=()=>AC||(AC=new (window.AudioContext||window.webkitAudioContext)());
 function bell(f,g=0.16,dur=3){if(!soundOn)return;const a=ac(),t0=a.currentTime;[1,2.01,3.0,4.2].forEach((m,i)=>{const o=a.createOscillator(),gg=a.createGain();o.type='sine';o.frequency.value=f*m;gg.gain.setValueAtTime(0,t0);gg.gain.linearRampToValueAtTime(g/(i+1),t0+0.02);gg.gain.exponentialRampToValueAtTime(0.0001,t0+dur/(1+i*0.5));o.connect(gg).connect(a.destination);o.start(t0);o.stop(t0+dur);});}
-function chord(){[523.25,659.25,783.99,987.77,1174.66].forEach((f,i)=>setTimeout(()=>bell(f,0.11,4.5),i*140));}
+
+// ---------- the sound of the aurora, tied to the gate levels ----------
+// level 2 (activity, Kp≥3): auroral hiss — VLF radio noise, heard through a radio receiver
+// level 5 (storm, Kp≥5): chorus — rising chirps, like birds at dawn (VLF radio, electrons in the magnetosphere)
+// level 3 (dark + clear, cold calm night): the rare real sound — crackles and claps from ~70 m (Laine's inversion-layer discharges)
+// perfection: crackle bursts in a ~7.8 Hz rhythm (Schumann resonance) + the bell chord
+let SND=null;
+function sndInit(){if(SND)return SND;const a=ac(),n=a.createBuffer(1,a.sampleRate*2,a.sampleRate),d=n.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  const src=a.createBufferSource();src.buffer=n;src.loop=true;const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=3200;bp.Q.value=0.6;const hg=a.createGain();hg.gain.value=0;
+  src.connect(bp).connect(hg).connect(a.destination);src.start();SND={a,noise:n,hg,bp,chirpAcc:0,crackAcc:0};return SND;}
+function chirp(k){const {a}=SND,t0=a.currentTime,o=a.createOscillator(),g=a.createGain(),lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3800;
+  const f0=650+Math.random()*500,f1=f0*(1.8+Math.random()*1.4),dur=0.12+Math.random()*0.45;o.type='sine';o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(f1,t0+dur);
+  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(0.012+0.02*k,t0+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);o.connect(lp).connect(g).connect(a.destination);o.start(t0);o.stop(t0+dur+0.05);}
+function crack(when,vol){const {a,noise}=SND,t0=a.currentTime+(when||0),s=a.createBufferSource(),hp=a.createBiquadFilter(),g=a.createGain();s.buffer=noise;hp.type='highpass';hp.frequency.value=700+Math.random()*1500;
+  const dur=0.004+Math.random()*0.02;g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+0.001);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);s.connect(hp).connect(g).connect(a.destination);s.start(t0,Math.random()*1.5);s.stop(t0+dur+0.02);}
+function crackBurst(vol){const n=3+Math.floor(Math.random()*6);let tt=0;for(let i=0;i<n;i++){crack(tt,vol*(0.5+Math.random()*0.5));tt+=1/7.83*(0.85+Math.random()*0.3);}}
+function soundTick(kp,dt){if(!soundOn){if(SND)SND.hg.gain.setTargetAtTime(0,SND.a.currentTime,0.3);return;}const S=sndInit();if(!playing&&!freeze){S.hg.gain.setTargetAtTime(0,S.a.currentTime,0.3);return;}
+  // level 2 · hiss grows with activity
+  const hiss=kp>=3?0.006+0.03*Math.min(1,(kp-3)/6):0;S.hg.gain.setTargetAtTime(hiss,S.a.currentTime,0.4);S.bp.frequency.setTargetAtTime(2600+kp*180,S.a.currentTime,0.5);
+  // level 5 · chorus chirps
+  if(kp>=5){S.chirpAcc+=dt*(0.6+(kp-5)*1.1)*(freeze?1.6:1);while(S.chirpAcc>1){S.chirpAcc-=Math.random()*1.6;chirp(Math.min(1,(kp-5)/4));}}
+  // level 3 · real crackles only where it is dark + clear (calm cold nights build the inversion layer) and the sky is active
+  if(freeze&&!freeze.p.south){const el=FRZ-freeze.left;if(el>1){S.crackAcc+=dt*1.4;if(S.crackAcc>1){S.crackAcc=0;crackBurst(0.16);}}}
+  else{const ok=A.cities.filter(c=>{const g=lastGates[c.id];return g&&g[0]>0.5&&g[2]>0.5;}).length;if(ok&&kp>=3){S.crackAcc+=dt*ok*0.03*(kp/5);if(S.crackAcc>1){S.crackAcc=0;Math.random()<0.6?crack(0,0.06):crackBurst(0.05);}}}}
+// arrival at a perfection moment: a soft airy swell as the camera dives in, then two "whistlers" — the falling radio tones that travel along the field lines
+function whoosh(){const S=sndInit(),a=S.a,t0=a.currentTime,s=a.createBufferSource(),bp=a.createBiquadFilter(),g=a.createGain();s.buffer=S.noise;s.loop=true;bp.type='bandpass';bp.Q.value=2.2;
+  bp.frequency.setValueAtTime(260,t0);bp.frequency.exponentialRampToValueAtTime(1500,t0+2.2);bp.frequency.exponentialRampToValueAtTime(700,t0+3.6);
+  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(0.09,t0+1.8);g.gain.exponentialRampToValueAtTime(0.0001,t0+3.8);s.connect(bp).connect(g).connect(a.destination);s.start(t0);s.stop(t0+3.9);}
+function whistler(delay,vol){const S=sndInit(),a=S.a,t0=a.currentTime+delay,o=a.createOscillator(),g=a.createGain(),lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=5000;o.type='sine';
+  o.frequency.setValueAtTime(5200,t0);o.frequency.exponentialRampToValueAtTime(420,t0+1.4);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+0.05);g.gain.setValueAtTime(vol,t0+0.5);g.gain.exponentialRampToValueAtTime(0.0001,t0+1.5);
+  o.connect(lp).connect(g).connect(a.destination);o.start(t0);o.stop(t0+1.6);}
+function chord(){if(!soundOn)return;whoosh();whistler(1.6,0.035);whistler(2.3,0.022);}
 
 function setup(){buildSouth();createCanvas(windowWidth,windowHeight);pixelDensity(Math.min(2,window.devicePixelRatio||1));layout();loadLand();
   for(let i=0;i<260;i++)stars.push([Math.random(),Math.random(),Math.random()]);
@@ -258,7 +298,7 @@ function draw(){const dt=Math.min(0.1,deltaTime/1000);
   if(tiltT!==null)tilt+=(tiltT-tilt)*0.05;
   if(freeze){const c=FC(),q=ROT(c.lat,c.lon,0.07);focusT=[q[0],q[1]];}
   zoom+=(zoomT-zoom)*0.045;focus[0]+=(focusT[0]-focus[0])*0.06;focus[1]+=(focusT[1]-focus[1])*0.06;
-  DEC=sunC(jd(T0+t*HOUR)).dec;const ms=T0+t*HOUR,kp=freeze?Math.max(kpSmooth(t),freeze.p.blocks[0].kp):kpSmooth(t),dec=sunC(jd(ms)).dec,moon=moonInfo(ms);
+  DEC=sunC(jd(T0+t*HOUR)).dec;const ms=T0+t*HOUR,kp=freeze?Math.max(kpSmooth(t),freeze.p.blocks[0].kp):kpSmooth(t),dec=sunC(jd(ms)).dec,moon=moonInfo(ms);soundTick(kp,dt);
   updateSunDir(ms,dec);background(2,4,10);drawStars();drawSun();drawMagnetoBack(kp);drawAtmo();drawGlobe();drawDaylight(ms,dec);drawGrat();drawLand(ms,dec);drawField(kp);drawClouds();drawAurora(kp,ms,0);drawPillars(kp,dec,moon,ms);drawSouth(kp,dec,moon,ms);drawAurora(kp,ms,1);drawBelts(kp);drawTailFlow(kp);drawSparks(dt);
   drawRingTags();if(freeze){drawInfluences(ms,moon);drawGallery();drawFreezeFX();}drawTimeline();updatePanels(ms,kp,moon,dec);}
 
